@@ -91,6 +91,14 @@ func getDHT(key string) map[string]interface{} {
 	return doRequest(getRequest(key, "debug_remoteGetDHT"))
 }
 
+func getPaths() map[string]interface{} {
+	req := map[string]interface{}{
+		"keepalive": true,
+		"request":   "getPaths",
+	}
+	return doRequest(req)
+}
+
 type rumorResult struct {
 	key string
 	res map[string]interface{}
@@ -116,6 +124,39 @@ func doRumor(key string, out chan rumorResult) {
 				results["nodeinfo"] = vm
 			}
 		}
+		
+		if res, ok := getPaths()["response"]; ok {
+			if _, ok := res.(map[string]interface{}); !ok {
+				return
+			}
+			psi := res.(map[string]interface{})["paths"]
+			if _, ok := psi.([]interface{}); !ok {
+				return
+			}
+			ps := psi.([]interface{})
+			for _, pi := range ps {
+				if _, ok := pi.(map[string]interface{}); !ok {
+					return
+				}
+				p := pi.(map[string]interface{})
+				if _, ok := p["key"]; !ok {
+					return
+				}
+				ki := p["key"]
+				if _, ok := ki.(string); !ok {
+					return
+				}
+				k := ki.(string)
+				if k != key {
+					continue
+				}
+				if _, ok := p["path"]; !ok {
+					return
+				}
+				results["coords"] = fmt.Sprintf("%v", p["path"])
+			}
+		}
+		/*
 		if res, ok := getSelf(key)["response"]; ok {
 			if _, ok := res.(map[string]interface{}); !ok {
 				return
@@ -130,6 +171,7 @@ func doRumor(key string, out chan rumorResult) {
 				}
 			}
 		}
+		*/
 		if res, ok := getPeers(key)["response"]; ok {
 			if _, ok := res.(map[string]interface{}); !ok {
 				return
@@ -144,6 +186,7 @@ func doRumor(key string, out chan rumorResult) {
 				}
 			}
 		}
+		/*
 		if res, ok := getDHT(key)["response"]; ok {
 			if _, ok := res.(map[string]interface{}); !ok {
 				return
@@ -158,6 +201,7 @@ func doRumor(key string, out chan rumorResult) {
 				}
 			}
 		}
+		*/
 		if len(results) > 0 {
 			results["time"] = time.Now().Unix()
 			out <- rumorResult{key, results}

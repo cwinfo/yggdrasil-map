@@ -1,5 +1,5 @@
 import json
-from database import NodeDB
+#from database import NodeDB
 from graph import Node, Edge
 import traceback
 import time

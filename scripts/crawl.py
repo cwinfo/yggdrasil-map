@@ -15,17 +15,8 @@ else:
   socktype = socket.AF_UNIX
   sockaddr = "/var/run/yggdrasil.sock"
 
-def getNodeInfoRequest(key):
-  return '{{"keepalive":true, "request":"getNodeInfo", "arguments": {{"key":"{}"}}}}'.format(key)
-
-def getSelfRequest(key):
-  return '{{"keepalive":true, "request":"debug_remoteGetSelf", "arguments": {{"key":"{}"}}}}'.format(key)
-
 def getPeersRequest(key):
   return '{{"keepalive":true, "request":"debug_remoteGetPeers", "arguments": {{"key":"{}"}}}}'.format(key)
-
-def getDHTRequest(key):
-  return '{{"keepalive":true, "request":"debug_remoteGetDHT", "arguments": {{"key":"{}"}}}}'.format(key)
 
 def doRequest(req):
   try:
@@ -40,64 +31,44 @@ def doRequest(req):
 visited = set() # Add nodes after a successful lookup response
 rumored = set() # Add rumors about nodes to ping
 timedout = set()
-def handleNodeInfoResponse(publicKey, data):
-  global visited
+
+def handleGetPeersResponse(publicKey, data):
+  global vistied
   global rumored
   global timedout
   if publicKey in visited: return
-  if not data: return
-  if 'response' not in data: return
-  out = dict()
-  for addr,v in data['response'].iteritems():
-    out['address'] = addr
-    out['nodeinfo'] = v
-  selfInfo = doRequest(getSelfRequest(publicKey))
-  if 'response' in selfInfo:
-    for _,v in selfInfo['response'].iteritems():
-      if 'coords' in v:
-        out['coords'] = v['coords']
-  peerInfo = doRequest(getPeersRequest(publicKey))
-  if 'response' in peerInfo:
-    for _,v in peerInfo['response'].iteritems():
-      if 'keys' not in v: continue
-      peers = v['keys']
-      for key in peers:
-        if key in visited: continue
-        if key in timedout: continue
-        rumored.add(key)
-      out['peers'] = peers
-  dhtInfo = doRequest(getDHTRequest(publicKey))
-  if 'response' in dhtInfo:
-    for _,v in dhtInfo['response'].iteritems():
-      if 'keys' in v:
-        dht = v['keys']
-        for key in dht:
-          if key in visited: continue
-          if key in timedout: continue
-          rumored.add(key)
-        out['dht'] = dht
-  out['time'] = time.time()
-  if len(visited) > 0: sys.stdout.write(",\n")
-  sys.stdout.write('"{}": {}'.format(publicKey, json.dumps(out)))
-  sys.stdout.flush()
-  visited.add(publicKey)
-# End handleResponse
+  #visited.add(publicKey)
+  try:
+    ks = data['response'].values()[0]['keys']
+    for k in ks:
+      if k in visited: continue
+      if k in timedout: continue
+      rumored.add(k)
+    visited.add(publicKey)
+  except:
+    pass
 
 # Get self info
 selfInfo = doRequest('{"keepalive":true, "request":"getSelf"}')
-rumored.add(selfInfo['response']['key'])
+#rumored.add(selfInfo['response']['key'])
+visited.add(selfInfo['response']['key'])
+try:
+  peers = doRequest('{"keepalive":true, "request":"getPeers"}')
+  for p in peers['response']['peers']:
+    rumored.add(p['key'])
+except:
+  pass
 
 # Initialize dicts of visited/rumored nodes
 #for k,v in selfInfo['response']['self'].iteritems(): rumored[k] = v
 
 # Loop over rumored nodes and ping them, adding to visited if they respond
-print '{"yggnodes": {'
 while len(rumored) > 0:
   for k in rumored:
-    handleNodeInfoResponse(k, doRequest(getNodeInfoRequest(k)))
+    print "DEBUG tested:", len(visited), "remaining:", len(rumored)
+    handleGetPeersResponse(k, doRequest(getPeersRequest(k)))
     break
   rumored.remove(k)
-print '\n}}'
 #End
 
 # TODO do something with the results
