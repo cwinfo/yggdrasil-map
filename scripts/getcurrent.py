@@ -13,7 +13,7 @@ elif len(sys.argv) == 2:
   sockaddr = sys.argv[1]
 else:
   socktype = socket.AF_UNIX
-  sockaddr = "/var/run/yggdrasil.sock"
+  sockaddr = "/var/run/yggdrasil/yggdrasil.sock"
 
 def doRequest(req):
   try:
