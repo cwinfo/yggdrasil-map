@@ -15,6 +15,17 @@ else:
   socktype = socket.AF_UNIX
   sockaddr = "/var/run/yggdrasil/yggdrasil.sock"
 
+def readall(sock):
+  data = []
+  sock.settimeout(1)
+  while True:
+    try:
+      frag = sock.recv(4096)
+      data.append(frag)
+    except:
+      break
+  return "".join(data)
+
 def getPeersRequest(key):
   return '{{"keepalive":true, "request":"debug_remoteGetPeers", "arguments": {{"key":"{}"}}}}'.format(key)
 
@@ -23,7 +34,7 @@ def doRequest(req):
     ygg = socket.socket(socktype, socket.SOCK_STREAM)
     ygg.connect(sockaddr)
     ygg.send(req)
-    data = json.loads(ygg.recv(1048576))
+    data = json.loads(readall(ygg))
     return data
   except:
     return None
